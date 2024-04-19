@@ -45,6 +45,14 @@ def start():
             # Won't run script if there are no files to scan
 
             print('No files found. Please put any files to convert in the "to_convert" directory')
+            user_response = input('Press enter to exit...')
+
+            while user_response != '':
+
+                user_response = input('Press enter to exit... ')
+
+                continue
+                
             exit()
             
         for name in file_names:
@@ -53,9 +61,18 @@ def start():
             # Lets the user upload based on sort rather than forcing them to sort
             # each box together before uploading
 
-            this = pull_data(name)
+            pull_data(name)
 
         move_files(file_names)
+        
+        print('Files converted! They are found in the same directory as this script!')
+        user_response = input('Press enter to exit...')
+
+        while user_response != '':
+
+            user_response = input('Press enter to exit...')
+
+            continue
 
 def dir_check():
 
