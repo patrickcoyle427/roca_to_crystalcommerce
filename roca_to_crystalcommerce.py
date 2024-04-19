@@ -1,4 +1,4 @@
-!/usr/bin/env python3
+#!/usr/bin/env python3
 
 '''
 Takes a CSV from the ROCA sorter output file and converts it into a CSV that can be uploaded into Crystal Commerce to add nev inventory
@@ -34,9 +34,28 @@ def start():
 
     # Runs script through each step of the conversion process
 
-    file_names = find_csv_names()
+    dir_exist = dir_check()
 
-    # Loop over files, don't combine them into 1?
+    if dir_exist:
+
+        file_names = find_csv_names()
+
+        if len(file_names) == 0:
+
+            # Won't run script if there are no files to scan
+
+            print('No files found. Please put any files to convert in the "to_convert" directory')
+            exit()
+            
+        for name in file_names:
+
+            # Goes through each file individually to create Crystal Commerce .csv files
+            # Lets the user upload based on sort rather than forcing them to sort
+            # each box together before uploading
+
+            this = pull_data(name)
+
+        move_files(file_names)
 
 def dir_check():
 
@@ -44,7 +63,7 @@ def dir_check():
     # then will pass each other time. Gives a message to let the user know
     # what to do with the created directories
 
-    if os.path.isdir('to_parse') and os.path.isdir('parsed_files'):
+    if os.path.isdir('to_convert') and os.path.isdir('converted_files'):
 
         return True
 
@@ -68,19 +87,96 @@ def find_csv_names():
 
     # Finds the names of the files to be parsed.
 
-    return [file for file in os.listdire('to_parse') if file.endswith('.csv')]
+    return [file for file in os.listdir('to_convert') if file.endswith('.csv')]
 
 def move_files(names):
 
     # Moves ROCA csvfiles that were used for creating crystal commerce files to a
     # new folder so the user knows they have been processed
     
-    # names - a list of file names that have been parsed
-
+    # names - a list of file names that have been converted
+    
     for file in names:
 
-        os.replace(f'to_parse/{file}', f'parsed_files/{file}')
+        os.replace(f'to_convert/{file}', f'converted_files/{file}')
 
-if __name == '__main__':
+def pull_data(f_name):
+
+    # f_name - .csv file to be loaded
+
+    data = []
+    # will hold csv data after being loaded
+
+    # Condition, old_price, and old_sku are columns on the Crystal Commerce csv
+    # These values will always be added in for those columns
+    # Condition default is Near Mint. It's the most likely condition for cards being added
+    # old_sku is not used by CC but the csv has it so it's added here
+
+    condition = 'Near Mint'
+    old_sku = 'abcde'
+
+    with open(f'to_convert/{f_name}', newline='') as csvfile:
+
+        reader = csv.reader(csvfile, delimiter=',')
+
+        next(reader, None)
+        # Skips the header line
+
+        for row in reader:
+
+            name = row[0]
+            category = row[1]
+            old_price = row[2]
+            language = row[4]
+            qty = row[5]
+
+            quote_removal_check = (name, category)
+
+            for i in quote_removal_check:
+
+                if i[0] == '"' or i[0] == "'":
+                    # Remove quotation marks
+
+                    length = len(i)
+
+                    to_switch = i[1:length-1]
+
+                    if i == name:
+
+                        name = to_switch
+
+                    else:
+
+                        category = to_switch
+
+            column_data = (name, qty, condition, category, old_price, old_sku, language)
+            
+            data.append(column_data)
+
+        write_file(data, f_name)
+
+def write_file(data, old_file_name):
+
+    # Writes the csv file to put into crystal commerce
+
+    # data - the csv data read from ROCA sorter output
+    # old_file_name - the ROCA sorter output file name
+
+    new_file_name = 'CC_READY_' + old_file_name[:len(old_file_name)-4] + '.csv'
+    # Builds the new file name
+
+    with open(new_file_name, 'w', newline='\n') as csvfile:
+        
+        writer = csv.writer (csvfile, delimiter=',')
+
+        writer.writerow(['Product Name', 'Add Qty', 'Condition', 'Category', 'OLDPRICE', 'OLDSKU', 'Language'])
+
+        for row in data:
+
+            writer.writerow(row)
+
+    print(f'{new_file_name} has been created')
+                                               
+if __name__ == '__main__':
 
     start()
